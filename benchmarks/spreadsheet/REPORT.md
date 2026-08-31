@@ -215,8 +215,8 @@ this experiment. This folder's `adapter/` wires the engine to the benchmark's
 task format and checker, and `fetch_data.py` downloads the dataset and the
 checker from their original sources at the pinned versions above — we point at
 the upstream work instead of copying it, because it has no license file.
-(Adapter and fetch script land together with the engine port; the report,
-contract, skill, and results in this folder are final.)
+Start with `adapter/README.md`: fetch, `run.py verify`, then the evolve and
+eval commands.
 
 POSIX only as written; use WSL2 on Windows. A run on a different machine is a
 different execution system: run a small equivalence probe (the 15 no-skill

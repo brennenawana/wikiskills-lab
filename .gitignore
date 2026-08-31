@@ -4,6 +4,9 @@ workspace/*
 
 # Benchmark data is downloaded from its original sources, never stored here.
 benchmarks/spreadsheet/data/
+# Local reproduction runs (ledgers, traces, workdirs) stay on your machine.
+benchmarks/spreadsheet/runs_local/
+benchmarks/spreadsheet/adapter/caps.json
 
 # The usual noise
 __pycache__/

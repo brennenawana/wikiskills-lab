@@ -12,6 +12,7 @@ real API. Exit 0 = ready.
 import http.server
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -20,10 +21,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "gateway"))
 sys.path.insert(0, os.path.join(HERE, "budget"))
 sys.path.insert(0, os.path.join(HERE, "measure"))
+sys.path.insert(0, os.path.join(HERE, "evolve"))
+sys.path.insert(0, os.path.join(HERE, "capsule"))
+sys.path.insert(0, os.path.join(HERE, "report"))
 
 from meter import Meter, BudgetStop, LookLedger      # noqa: E402
-from gateway import Gateway, parse_cli_result        # noqa: E402
+from gateway import Gateway, parse_cli_result, extract_json  # noqa: E402
 import runner as runner_mod                          # noqa: E402
+import wikistore                                     # noqa: E402
+import loop as loop_mod                              # noqa: E402
+import capsule as capsule_mod                        # noqa: E402
+import report as report_mod                          # noqa: E402
 
 RESULTS = []
 
@@ -216,8 +224,155 @@ def test_runner():
           not os.path.exists(os.path.join(d, "blocked", "results.jsonl")))
 
 
+# ------------------------------------------------------------ evolve loop
+
+class FakeRoles:
+    """Scripted maintainer + proposer: iteration 1 creates a skill that
+    will pass the gate, iteration 2 patches it and fails, then no_action
+    until the plateau stop fires."""
+
+    def maintain(self, run_dir, results, iteration, trace_dir):
+        return wikistore.apply_maintainer_ops(run_dir, {
+            "update_index": "# Pattern Index\n\n- [p1](wiki/patterns/p1.md):"
+                            " problem + cause + fix.\n",
+            "append_log": "iteration %d analyzed" % iteration,
+            "create_patterns": [{"name": "p1.md",
+                                 "content": "# p1\nEvidence."}],
+        }, iteration)
+
+    def propose(self, run_dir, results, iteration, trace_dir):
+        if iteration == 1:
+            return {"action": "create", "name": "good_skill",
+                    "skill_md": "---\nname: good_skill\n---\nDo it right.",
+                    "purpose_md": "# PURPOSE\nFrom iteration 1."}
+        if iteration == 2:
+            return {"action": "patch", "name": "good_skill",
+                    "edits": [{"op": "append", "content": "BAD ADVICE"}]}
+        return {"action": "no_action"}
+
+
+def test_evolve():
+    print("Evolution loop:")
+    d = tmpdir()
+    run_dir = os.path.join(d, "run1")
+
+    # Scripted scores: baseline .4; with the created skill .6 (accept);
+    # with the bad patch .2 (reject).
+    def rollout_fn(tasks, skill_section, iteration, trace_dir):
+        if "BAD ADVICE" in skill_section:
+            score = 0.2
+        elif "good_skill" in skill_section:
+            score = 0.6
+        else:
+            score = 0.4
+        results = [{"id": t["id"], "score": score, "crash": False}
+                   for t in tasks]
+        if trace_dir:
+            for r in results:
+                with open(os.path.join(str(trace_dir),
+                                       "%s.txt" % r["id"]), "w") as fh:
+                    fh.write("trace for %s score %.1f" % (r["id"], score))
+        return results
+
+    tasks = [{"id": "a"}, {"id": "b"}]
+    state = loop_mod.run_evolution(run_dir, tasks, tasks, rollout_fn,
+                                   FakeRoles(), k=8, plateau_stop=3)
+
+    check("baseline measured with empty skills",
+          any(a["iteration"] == 1 for a in state["accepted"]))
+    skills = os.path.join(run_dir, "skills", "good_skill", "SKILL.md")
+    good = open(skills).read() if os.path.exists(skills) else ""
+    check("gate: improving skill accepted and promoted",
+          "Do it right." in good)
+    check("gate: worsening patch rejected, skills untouched",
+          "BAD ADVICE" not in good)
+    check("plateau stop after 3 straight non-accepts",
+          state["stop_reason"] == "EARLY-PLATEAU")
+    impact = open(os.path.join(run_dir, "wiki",
+                               "skill-impact.md")).read()
+    check("skill-impact audit trail written by the harness",
+          "ACCEPTED" in impact and "REJECTED" in impact
+          and "NO_ACTION" in impact)
+    check("wiki persisted (patterns + index + log)",
+          os.path.exists(os.path.join(run_dir, "wiki", "patterns",
+                                      "p1.md")))
+
+    # Interrupted-run resume: state.json carries the loop forward.
+    state2 = loop_mod.run_evolution(run_dir, tasks, tasks, rollout_fn,
+                                    FakeRoles(), k=8, plateau_stop=3)
+    check("finished run resumes as a no-op (checkpointed state)",
+          state2["stop_reason"] == "EARLY-PLATEAU"
+          and state2["accepted"] == state["accepted"])
+
+    check("extract_json finds the object inside prose",
+          extract_json("Here you go:\n{\"action\": \"no_action\"}\nDone.")
+          == {"action": "no_action"})
+
+
+# ---------------------------------------------------------------- capsule
+
+def test_capsule():
+    print("Capsules:")
+    d = tmpdir()
+    repo = os.path.join(d, "repo")
+    os.makedirs(repo)
+    subprocess.run(["git", "init", "-q", repo], check=True)
+    open(os.path.join(repo, "f.txt"), "w").write("hello")
+    subprocess.run(["git", "-C", repo, "add", "-A"], check=True,
+                   capture_output=True)
+    subprocess.run(["git", "-C", repo, "-c", "user.email=t@t",
+                    "-c", "user.name=t", "commit", "-qm", "x"],
+                   check=True, capture_output=True)
+
+    fx = os.path.join(d, "capture")
+    os.makedirs(fx)
+    open(os.path.join(fx, "0001_GET_x.json"), "w").write(
+        '{"request": {"method": "GET", "path": "/x"}, '
+        '"response": {"status": 200, "body": {"encoding": "text", '
+        '"data": "{}"}}}')
+
+    cap = os.path.join(d, "capsule")
+    manifest = capsule_mod.create(cap, "test task", [repo],
+                                  fixtures_dir=fx)
+    check("capsule pins the repo commit",
+          len(manifest["repos"]) == 1
+          and len(manifest["repos"][0]["commit"]) == 40)
+    ok, _ = capsule_mod.verify(cap)
+    check("fresh capsule verifies", ok)
+    with open(os.path.join(cap, "fixtures", "0001_GET_x.json"), "a") as fh:
+        fh.write(" ")
+    ok2, problems = capsule_mod.verify(cap)
+    check("tampered fixture is detected", not ok2
+          and any("mismatch" in p for p in problems))
+    co = capsule_mod.checkout(cap, os.path.join(d, "co"))
+    check("disposable checkout materializes the pinned commit",
+          os.path.exists(os.path.join(co[0], "f.txt")))
+
+
+# ----------------------------------------------------------------- report
+
+def test_report():
+    print("Report generator:")
+    before = {"run": "baseline", "suite": "s", "suite_version": "1",
+              "n_tasks": 4, "mean_score": 0.25, "total_cost": 2.0,
+              "errors": 0, "per_task": {"a": 0, "b": 0, "c": 0, "d": 1}}
+    after = {"run": "after", "suite": "s", "suite_version": "1",
+             "n_tasks": 4, "mean_score": 0.75, "total_cost": 1.2,
+             "errors": 0, "per_task": {"a": 1, "b": 1, "c": 0, "d": 1}}
+    text = report_mod.generate(before, after, metric="tasks solved",
+                               artifacts=["good_skill"])
+    check("before/after numbers and delta present",
+          "25.0%" in text and "75.0%" in text and "+50.0 points" in text)
+    check("noise floor stated from suite size", "25.0 points" in text)
+    check("improved/regressed tasks listed", "a, b" in text)
+    mixed = report_mod.generate(before, dict(after, suite_version="2"))
+    check("different suite versions -> NOT comparable warning",
+          "NOT comparable" in mixed)
+
+
 def main():
-    for fn in (test_meter, test_looks, test_gateway, test_runner):
+    for fn in (test_meter, test_looks, test_gateway, test_runner,
+               test_evolve, test_capsule, test_report):
         fn()
         print()
     failed = RESULTS.count(False)

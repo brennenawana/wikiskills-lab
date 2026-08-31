@@ -73,8 +73,8 @@ This is an early version. What works today:
 | Step 2 — Observe (recorder, checklist, probes) | Ready |
 | Step 3 — Diagnose (findings, ranking, chosen focus) | Ready |
 | Step 4 — Measure (suite, generated contract, baseline) | Ready |
-| Step 5 — Improve (the evolution loop) | Being built |
-| Spreadsheet case study | Complete — full record with receipts |
+| Step 5 — Improve (the evolution loop, gate, report) | Ready |
+| Spreadsheet case study | Complete — record, receipts, and a runnable reproduction |
 
 ## Credits
 

@@ -18,7 +18,9 @@ held-out spreadsheet tasks from 36% to 76% (frontier-guided) and 63%
 | `results/VERDICT.json` | Machine-readable outcomes and statistics |
 | `results/spend.json` | Spend per run, reconciled from append-only ledgers |
 | `results/test_looks.jsonl` | The test-look ledger: 7 looks planned, 7 spent, none extra |
-| `adapter/`, `fetch_data.py` | Wire the engine to this benchmark and download its data — these land together with the engine port |
+| `adapter/` | Wires the engine to this benchmark: task loading, pinned checker, executor, and `run.py` (verify / evolve / eval) |
+| `fetch_data.py` | Downloads the dataset and checker from their original sources at pinned versions, checksum-verified |
+| `manifest.json` | The frozen 30/15/100 task draw (ids and hashes only — no benchmark content) |
 
 **About the benchmark's data:** the tasks and the checker belong to
 SpreadsheetBench (Ma et al., NeurIPS 2024; "Verified-400" subset on Hugging

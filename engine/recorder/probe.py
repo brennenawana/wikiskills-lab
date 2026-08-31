@@ -8,6 +8,8 @@ probe has demonstrated it on this machine. This tool runs those probes.
                             #   (spawns its own fake upstream; no real
                             #    credentials, no network, no spend)
   python3 probe.py hook     # prove the Claude Code hook script
+  python3 probe.py replay   # prove replay mode: fixtures served, misses
+                            #   fail closed, no upstream needed
   python3 probe.py ledger --file PATH
                             # validate any ledger file a third-party
                             #   recorder claims to write (O4/O5/O6 only)
@@ -240,6 +242,59 @@ def probe_proxy():
     return summary()
 
 
+# ------------------------------------------------------------ replay probe
+
+def probe_replay():
+    import proxy as proxy_mod
+
+    print("Probing replay mode (record, kill the upstream, replay):")
+    tmp = tempfile.mkdtemp(prefix="wsl-probe-")
+    capture = os.path.join(tmp, "capture")
+
+    # 1. Record two real exchanges.
+    upstream = start_fake_upstream()
+    up_port = upstream.server_address[1]
+    ready = threading.Event()
+    threading.Thread(
+        target=proxy_mod.serve,
+        args=("http://127.0.0.1:%d" % up_port, 0,
+              os.path.join(tmp, "record.jsonl"), capture, "rec", ready),
+        daemon=True).start()
+    ready.wait(5)
+    rec_port = ready.server.server_address[1]
+    _, recorded = call(rec_port, "GET", "/rest/api/2/issue/PROJ-1")
+    call(rec_port, "POST", "/v1/chat/completions",
+         {"model": "probe-model", "messages": []},
+         {"Content-Type": "application/json"})
+    time.sleep(0.2)
+    ready.server.shutdown()
+    upstream.shutdown()          # the live world is now GONE
+
+    # 2. Replay from the captures alone.
+    replay_ledger = os.path.join(tmp, "replay.jsonl")
+    ready2 = threading.Event()
+    threading.Thread(
+        target=proxy_mod.serve,
+        args=(None, 0, replay_ledger, None, "replay", ready2),
+        kwargs={"replay_dir": capture}, daemon=True).start()
+    ready2.wait(5)
+    rp_port = ready2.server.server_address[1]
+
+    status, replayed = call(rp_port, "GET", "/rest/api/2/issue/PROJ-1")
+    check("R1", "recorded exchange served from fixtures (no upstream)",
+          status == 200 and json.loads(replayed) == json.loads(recorded))
+    status2, body2 = call(rp_port, "GET", "/rest/api/2/issue/NOPE-999")
+    check("R2", "unmatched request FAILS CLOSED (503 replay-miss)",
+          status2 == 503 and b"replay-miss" in body2)
+    time.sleep(0.2)
+    rows = read_ledger(replay_ledger)
+    check("R3", "replay ledger records hits and the miss",
+          len(rows) == 2 and rows[0].get("replayed") is True
+          and rows[1].get("error") == "replay-miss")
+    ready2.server.shutdown()
+    return summary()
+
+
 # -------------------------------------------------------------- hook probe
 
 def probe_hook():
@@ -312,13 +367,15 @@ def probe_ledger(path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("mode", choices=["proxy", "hook", "ledger"])
+    ap.add_argument("mode", choices=["proxy", "hook", "replay", "ledger"])
     ap.add_argument("--file", help="ledger file (mode: ledger)")
     args = ap.parse_args()
     if args.mode == "proxy":
         sys.exit(probe_proxy())
     if args.mode == "hook":
         sys.exit(probe_hook())
+    if args.mode == "replay":
+        sys.exit(probe_replay())
     if not args.file:
         ap.error("--file is required for mode 'ledger'")
     sys.exit(probe_ledger(args.file))

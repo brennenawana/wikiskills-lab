@@ -8,10 +8,19 @@ request/response bodies as replay raw material.
 
 Standard library only. Runs the same on macOS, Linux, and Windows.
 
-Usage:
+Record mode:
   python3 proxy.py --upstream https://api.example.com \
       --port 8788 --ledger workspace/ledgers/model_calls.jsonl \
       [--name my-endpoint] [--capture workspace/ledgers/capture]
+
+Replay mode (hermetic — for repeatable evaluations):
+  python3 proxy.py --replay workspace/capsules/<id>/fixtures \
+      --port 8788 --ledger workspace/runs/<run>/replay.jsonl
+
+In replay mode nothing is forwarded anywhere: responses come only from the
+recorded capture files, and a request with no matching fixture FAILS CLOSED
+(HTTP 503 plus a ledger row), so an evaluation can never quietly leak into
+the live world.
 
 Then point the client's base URL at http://127.0.0.1:8788 instead of the
 upstream. Run one proxy per upstream (one for the model, one for the
@@ -193,6 +202,89 @@ class Recorder:
             json.dump(record, fh, ensure_ascii=False, indent=1)
 
 
+def load_fixtures(replay_dir):
+    """Index capture files for replay: (method, path) -> record."""
+    index = {}
+    for fn in sorted(os.listdir(replay_dir)):
+        if not fn.endswith(".json"):
+            continue
+        try:
+            rec = json.load(open(os.path.join(replay_dir, fn),
+                                 encoding="utf-8"))
+            req = rec["request"]
+            key = (req["method"], req["path"])
+        except (ValueError, KeyError):
+            continue
+        index.setdefault(key, rec)
+    return index
+
+
+def make_replay_handler(replay_dir, recorder):
+    fixtures = load_fixtures(replay_dir)
+
+    class ReplayHandler(http.server.BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, *args):
+            pass
+
+        def _serve(self):
+            start = time.monotonic()
+            length = int(self.headers.get("Content-Length") or 0)
+            req_body = self.rfile.read(length) if length else b""
+            key = (self.command, self.path)
+            rec = fixtures.get(key)
+            if rec is None:  # retry without the query string
+                rec = fixtures.get((self.command,
+                                    self.path.split("?", 1)[0]))
+            if rec is None:
+                body = json.dumps({"error": "replay-miss",
+                                   "detail": "no fixture for %s %s"
+                                   % key}).encode()
+                self.send_response(503)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(body)
+                recorder.record(
+                    {"v": LEDGER_VERSION, "ts": now_iso(),
+                     "proxy": recorder.name, "method": self.command,
+                     "path": self.path, "status": 503,
+                     "dur_ms": int((time.monotonic() - start) * 1000),
+                     "req_bytes": len(req_body), "resp_bytes": len(body),
+                     "error": "replay-miss"},
+                    self.headers, req_body, {}, b"")
+                return
+            resp = rec["response"]
+            bodyfield = resp.get("body") or {}
+            if bodyfield.get("encoding") == "base64":
+                body = base64.b64decode(bodyfield.get("data", ""))
+            else:
+                body = (bodyfield.get("data") or "").encode("utf-8")
+            ctype = (resp.get("headers") or {}).get("Content-Type",
+                                                    "application/json")
+            status = int(resp.get("status", 200))
+            self.send_response(status)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(body)
+            recorder.record(
+                {"v": LEDGER_VERSION, "ts": now_iso(),
+                 "proxy": recorder.name, "method": self.command,
+                 "path": self.path, "status": status,
+                 "dur_ms": int((time.monotonic() - start) * 1000),
+                 "req_bytes": len(req_body), "resp_bytes": len(body),
+                 "replayed": True},
+                self.headers, req_body, {}, b"")
+
+        do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = _serve
+
+    return ReplayHandler
+
+
 def make_handler(upstream, recorder):
     parsed = urllib.parse.urlsplit(upstream)
     scheme, netloc = parsed.scheme, parsed.netloc
@@ -310,33 +402,44 @@ def make_handler(upstream, recorder):
     return Handler
 
 
-def serve(upstream, port, ledger, capture, name, ready_event=None):
+def serve(upstream, port, ledger, capture, name, ready_event=None,
+          replay_dir=None):
     recorder = Recorder(ledger, capture, name)
-    handler = make_handler(upstream, recorder)
+    if replay_dir:
+        handler = make_replay_handler(replay_dir, recorder)
+        label = "replay from %s (hermetic; misses fail closed)" % replay_dir
+    else:
+        handler = make_handler(upstream, recorder)
+        label = "-> %s" % upstream
     server = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
     if ready_event is not None:
         ready_event.server = server
         ready_event.set()
-    print("recording proxy '%s': http://127.0.0.1:%d -> %s"
-          % (name, server.server_address[1], upstream), file=sys.stderr)
+    print("proxy '%s': http://127.0.0.1:%d %s"
+          % (name, server.server_address[1], label), file=sys.stderr)
     print("ledger: %s" % ledger, file=sys.stderr)
     server.serve_forever()
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--upstream", required=True,
-                    help="base URL to forward to, e.g. https://api.host.com")
+    mode = ap.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--upstream",
+                      help="record mode: base URL to forward to")
+    mode.add_argument("--replay",
+                      help="replay mode: directory of capture files; "
+                           "requests with no fixture fail closed")
     ap.add_argument("--port", type=int, default=8788)
     ap.add_argument("--ledger", required=True,
                     help="JSONL ledger file (appended, never truncated)")
     ap.add_argument("--capture", default=None,
-                    help="directory for full scrubbed request/response "
-                         "captures (replay raw material)")
+                    help="record mode: directory for full scrubbed "
+                         "request/response captures (replay raw material)")
     ap.add_argument("--name", default="upstream",
                     help="short name for this endpoint in ledger rows")
     args = ap.parse_args()
-    serve(args.upstream, args.port, args.ledger, args.capture, args.name)
+    serve(args.upstream, args.port, args.ledger, args.capture, args.name,
+          replay_dir=args.replay)
 
 
 if __name__ == "__main__":

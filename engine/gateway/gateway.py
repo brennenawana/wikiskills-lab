@@ -15,13 +15,19 @@ Metering doctrine baked in: sum EVERY usage entry a response reports, and
 when several independent cost accountings exist, bill the HIGHEST. A single-
 entry reading once undercounted real spend by ~30x.
 
+The claude-cli backend accepts per-call `options` for agentic work:
+  cwd, tools ("Bash", "Read", ...), max_turns, json_schema (dict),
+  stream (True -> per-event trace list in the result), extra_env,
+  timeout_s. Isolation flags are always on; --bare is forbidden (it turns
+  off subscription login).
+
 Credentials come from environment variables named in the config; values are
 never written anywhere. Standard library only.
 """
 
 import json
 import os
-import re
+import shutil
 import subprocess
 import time
 import urllib.error
@@ -30,12 +36,10 @@ import urllib.request
 TRANSPORT_RETRY_STATUSES = {429, 500, 502, 503, 529}
 RETRY_ATTEMPTS = 3
 
-# Flags that make every CLI call a fresh, isolated process: no session
-# state, no memories, a fully replaced system prompt. Never use --bare
-# (it turns off subscription login).
-CLI_BASE_ARGS = ["--safe-mode", "--disable-slash-commands",
-                 "--strict-mcp-config", "--no-session-persistence",
-                 "--output-format", "json"]
+# Fresh, isolated CLI process per call: no session state, no memories, a
+# fully replaced system prompt. Never --bare.
+CLI_ISOLATION_ARGS = ["--safe-mode", "--disable-slash-commands",
+                      "--strict-mcp-config", "--no-session-persistence"]
 
 
 class GatewayError(Exception):
@@ -82,64 +86,109 @@ def _http_json(url, payload, headers):
     raise GatewayError("retries exhausted: %s" % last_exc)
 
 
-def _sum_usage_entries(usage_map):
-    """Fold a {model: usage} map (CLI-style modelUsage) into totals.
+def _pick(entry, keys):
+    for k in keys:
+        v = entry.get(k)
+        if isinstance(v, (int, float)):
+            return v
+    return 0
 
-    Sums across ALL entries; tolerant of both camelCase and snake_case.
-    Returns (tokens_in, tokens_out, cache_read, cache_write, entry_usd_sum).
-    """
-    t_in = t_out = c_read = c_write = usd = 0
-    names = {
-        "in": ("inputTokens", "input_tokens", "prompt_tokens"),
-        "out": ("outputTokens", "output_tokens", "completion_tokens"),
-        "cr": ("cacheReadInputTokens", "cache_read_input_tokens"),
-        "cw": ("cacheCreationInputTokens", "cache_creation_input_tokens"),
-        "usd": ("costUSD", "cost_usd"),
-    }
 
-    def pick(entry, keys):
-        for k in keys:
-            v = entry.get(k)
-            if isinstance(v, (int, float)):
-                return v
-        return 0
+def extract_cli_usage(payload, model=None):
+    """From a CLI result payload: sum EVERY modelUsage entry for billing;
+    attribute tokens to the model under test (canonical-name match) when a
+    model is given, else sum everything.
 
-    for entry in usage_map.values():
+    Returns dict: tokens_in/out, cache_read/write, entry_usd (sum of every
+    entry's own cost figure), reported_usd (the CLI's total)."""
+    usage_map = payload.get("modelUsage") or payload.get("model_usage") or {}
+    t_in = t_out = c_read = c_write = 0
+    entry_usd = 0.0
+    for key, entry in usage_map.items():
         if not isinstance(entry, dict):
             continue
-        t_in += pick(entry, names["in"])
-        t_out += pick(entry, names["out"])
-        c_read += pick(entry, names["cr"])
-        c_write += pick(entry, names["cw"])
-        usd += pick(entry, names["usd"])
-    return t_in, t_out, c_read, c_write, usd
+        entry_usd += _pick(entry, ("costUSD", "cost_usd"))
+        canonical = entry.get("canonicalModel") or entry.get(
+            "canonical_model") or key
+        if model and not str(canonical).startswith(model):
+            continue
+        t_in += _pick(entry, ("inputTokens", "input_tokens"))
+        t_out += _pick(entry, ("outputTokens", "output_tokens"))
+        c_read += _pick(entry, ("cacheReadInputTokens",
+                                "cache_read_input_tokens"))
+        c_write += _pick(entry, ("cacheCreationInputTokens",
+                                 "cache_creation_input_tokens"))
+    reported = payload.get("total_cost_usd") or payload.get("cost_usd") or 0.0
+    return {"tokens_in": t_in, "tokens_out": t_out, "cache_read": c_read,
+            "cache_write": c_write, "entry_usd": float(entry_usd),
+            "reported_usd": float(reported)}
 
 
-def parse_cli_result(stdout_text, prices=None):
+def parse_cli_result(stdout_text, prices=None, model=None):
     """Parse `claude -p --output-format json` output into a result dict.
 
-    Applies both metering rules: sum every modelUsage entry; final usd is
-    the MAX of (CLI-reported total, per-entry cost sum, price-computed).
-    """
-    data = json.loads(stdout_text)
-    text = data.get("result", "")
-    usage_map = data.get("modelUsage") or data.get("model_usage") or {}
-    t_in, t_out, c_read, c_write, entry_usd = _sum_usage_entries(usage_map)
-    reported = data.get("total_cost_usd") or data.get("cost_usd") or 0.0
-    model = next(iter(usage_map), None)
-    computed = _compute_usd(prices, model, t_in, t_out, c_read, c_write) or 0.0
-    usd = max(float(reported), float(entry_usd), float(computed))
-    return {"text": text, "model": model, "tokens_in": t_in,
-            "tokens_out": t_out, "cache_read": c_read,
-            "cache_write": c_write, "usd": usd,
-            "is_error": bool(data.get("is_error"))}
+    Billing = MAX of (CLI-reported total, per-entry cost sum,
+    price-computed) — the highest of the independent accountings wins."""
+    payload = json.loads(stdout_text)
+    return _result_from_cli_payload(payload, prices, model)
+
+
+def _result_from_cli_payload(payload, prices=None, model=None,
+                             events=None):
+    u = extract_cli_usage(payload, model)
+    usage_model = model
+    if usage_model is None:
+        usage_map = payload.get("modelUsage") or {}
+        usage_model = next(iter(usage_map), None)
+    computed = _compute_usd(prices, usage_model, u["tokens_in"],
+                            u["tokens_out"], u["cache_read"],
+                            u["cache_write"]) or 0.0
+    usd = max(u["reported_usd"], u["entry_usd"], computed)
+    out = {"text": payload.get("result", ""), "model": usage_model,
+           "tokens_in": u["tokens_in"], "tokens_out": u["tokens_out"],
+           "cache_read": u["cache_read"], "cache_write": u["cache_write"],
+           "usd": usd, "is_error": bool(payload.get("is_error")),
+           "num_turns": payload.get("num_turns"),
+           "subtype": payload.get("subtype")}
+    if events is not None:
+        out["events"] = events
+    structured = payload.get("structured_output")
+    if isinstance(structured, dict):
+        out["structured"] = structured
+    return out
+
+
+def extract_json(result):
+    """Best-effort JSON object from a gateway result: schema-forced
+    structured output first, then the largest {...} block in the text."""
+    if isinstance(result, dict):
+        if isinstance(result.get("structured"), dict):
+            return result["structured"]
+        text = result.get("text") or ""
+    else:
+        text = str(result)
+    text = text.strip()
+    try:
+        obj = json.loads(text)
+        return obj if isinstance(obj, dict) else None
+    except ValueError:
+        pass
+    start, end = text.find("{"), text.rfind("}")
+    if 0 <= start < end:
+        try:
+            obj = json.loads(text[start:end + 1])
+            return obj if isinstance(obj, dict) else None
+        except ValueError:
+            pass
+    return None
 
 
 class Gateway:
     def __init__(self, prices=None):
         self.prices = prices or {}
 
-    def call(self, cfg, user_text, system=None, max_tokens=4096):
+    def call(self, cfg, user_text, system=None, max_tokens=4096,
+             options=None):
         kind = cfg.get("kind")
         if kind == "canned":
             return {"text": cfg.get("text", "ok"), "model": "canned",
@@ -150,7 +199,7 @@ class Gateway:
         if kind == "anthropic":
             return self._anthropic(cfg, user_text, system, max_tokens)
         if kind == "claude-cli":
-            return self._cli(cfg, user_text, system)
+            return self._cli(cfg, user_text, system, options or {})
         raise GatewayError("unknown backend kind: %r" % kind)
 
     def _auth_header(self, cfg, header_name, prefix=""):
@@ -212,31 +261,68 @@ class Gateway:
                 "tokens_out": t_out, "cache_read": c_read,
                 "cache_write": c_write, "usd": usd, "is_error": False}
 
-    def _cli(self, cfg, user_text, system):
-        cmd = [cfg.get("command", "claude"), "-p", user_text,
-               "--model", cfg["model"]] + CLI_BASE_ARGS
+    def _cli(self, cfg, user_text, system, o):
+        binary = cfg.get("command") or shutil.which("claude")
+        if not binary:
+            raise GatewayError("`claude` CLI not found on PATH")
+        stream = bool(o.get("stream"))
+        tools = o.get("tools", cfg.get("tools", ""))
+        argv = [binary, "-p", user_text, *CLI_ISOLATION_ARGS,
+                "--tools", tools, "--model", cfg["model"],
+                "--output-format", "stream-json" if stream else "json"]
+        if stream:
+            argv += ["--verbose"]
         if system:
-            cmd += ["--system-prompt", system]
-        for extra in cfg.get("extra_args", []):
-            cmd.append(extra)
-        last = None
-        for attempt in range(RETRY_ATTEMPTS):
-            proc = subprocess.run(cmd, capture_output=True, text=True,
-                                  timeout=cfg.get("timeout_s", 900))
-            if proc.returncode == 0 and proc.stdout.strip():
-                result = parse_cli_result(proc.stdout, self.prices)
-                status = _api_error_status(proc.stdout)
-                if status in TRANSPORT_RETRY_STATUSES \
-                        and attempt < RETRY_ATTEMPTS - 1:
-                    time.sleep(2 ** attempt)
-                    continue
-                return result
-            last = proc.stderr[:500]
-            if attempt < RETRY_ATTEMPTS - 1:
-                time.sleep(2 ** attempt)
+            argv += ["--system-prompt", system]
+        if o.get("max_turns") is not None:
+            argv += ["--max-turns", str(o["max_turns"])]
+        if o.get("json_schema") is not None:
+            argv += ["--json-schema", json.dumps(o["json_schema"])]
+        if tools:
+            argv += ["--permission-mode", "bypassPermissions"]
+        argv += cfg.get("extra_args", [])
+
+        env = os.environ.copy()
+        env.update(o.get("extra_env") or {})
+        timeout = o.get("timeout_s", cfg.get("timeout_s", 1800))
+
+        last = ""
+        for attempt in (1, 2, 3):
+            try:
+                proc = subprocess.run(argv, cwd=o.get("cwd"), env=env,
+                                      capture_output=True, text=True,
+                                      timeout=timeout)
+            except subprocess.TimeoutExpired as exc:
+                raise GatewayError("CLI wall-clock timeout after %ss"
+                                   % timeout) from exc
+            events, payload = [], {}
+            if stream:
+                for line in proc.stdout.splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    events.append(obj)
+                    if obj.get("type") == "result":
+                        payload = obj
+            else:
+                try:
+                    payload = json.loads(proc.stdout or "{}")
+                except json.JSONDecodeError:
+                    payload = {}
+
+            # Retry ONLY transport/overload failures; a retried wrong answer
+            # or refusal would bias results.
+            status = payload.get("api_error_status")
+            if payload and status not in TRANSPORT_RETRY_STATUSES:
+                return _result_from_cli_payload(
+                    payload, self.prices, cfg.get("model"),
+                    events if stream else None)
+            last = ("rc=%s api_error_status=%s stderr=%r"
+                    % (proc.returncode, status, proc.stderr[:300]))
+            if attempt < 3:
+                time.sleep(15 * attempt)
         raise GatewayError("claude CLI failed after retries: %s" % last)
-
-
-def _api_error_status(stdout_text):
-    m = re.search(r'"api_error_status"\s*:\s*(\d+)', stdout_text)
-    return int(m.group(1)) if m else None
