@@ -1,0 +1,14 @@
+{
+  "_comment": "Format sample - illustration only, not a record.",
+  "v": 1,
+  "ts": "20XX-01-13T16:20:00Z",
+  "automated_probes": {"proxy": "pass"},
+  "canary": {
+    "ran": true,
+    "streams_with_rows": ["model-calls", "tracker-traffic"],
+    "tokens_visible": true,
+    "secrets_found": false
+  },
+  "approved_gaps": ["CI logs"],
+  "ready": true
+}

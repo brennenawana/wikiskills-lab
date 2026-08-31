@@ -75,6 +75,7 @@ This is an early version. What works today:
 | Step 4 — Measure (suite, generated contract, baseline) | Ready |
 | Step 5 — Improve (the evolution loop, gate, report) | Ready |
 | Spreadsheet case study | Complete — record, receipts, and a runnable reproduction |
+| Sample artifacts (what your workspace files will look like) | Ready — [`examples/sample-artifacts/`](examples/sample-artifacts/) |
 
 ## Credits
 

@@ -35,8 +35,9 @@ measurement happen — once.
   traces itself with the Read tool ("react"); every other backend — local
   models included — gets the wiki and sampled traces delivered in the
   message ("packet"). Both obey the same rules.
-- **Seeds:** one evolution run is a lottery ticket. If the contract chose
-  the local tier, it prescribed more seeds for exactly that reason.
+- **Seeds:** the outcome of one evolution run depends partly on luck. If
+  the contract chose the local tier, it prescribed more seeds for exactly
+  that reason.
 
 ## Stage 2 — Run
 
@@ -73,9 +74,9 @@ verdict was defined before the data, so this part is mechanical.
   skills directories, pipeline config). Keep the wiki and the run records;
   they are the provenance.
 - **Not met:** the artifacts stay out, the baseline stands, and the record
-  of what was tried is kept — a documented dead end saves the next attempt
-  from repeating it. Say this to the user without apology; it is the
-  system working.
+  of what was tried is kept — a written record of a failed idea saves the
+  next attempt from repeating it. Say this to the user without apology; it
+  is the system working.
 - Either way: light monitoring. Re-run the suite occasionally; when the
   suite goes stale (the work has changed), redraw it from fresh observed
   tasks under a new suite version and a new baseline.

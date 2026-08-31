@@ -1,0 +1,26 @@
+{
+  "_comment": "Format sample - illustration only, not a record.",
+  "v": 1,
+  "started": "20XX-01-14T09:02:00Z",
+  "ended": "20XX-01-14T10:41:00Z",
+  "task": "ORB-4127: retries flood the upstream when the token expires",
+  "repos": [
+    {"path": "../orbit-api", "commit": "<40-char commit hash>"},
+    {"path": "../orbit-shared", "commit": "<40-char commit hash>"}
+  ],
+  "streams": [
+    {"name": "model-calls", "recorder": "engine proxy :8788",
+     "evidence": "measured", "ledger": "ledgers/model_calls.jsonl"},
+    {"name": "tracker-traffic", "recorder": "engine proxy :8789",
+     "evidence": "measured", "ledger": "ledgers/tracker_calls.jsonl"}
+  ],
+  "gaps": [
+    {"what": "CI logs", "why": "web UI only, no access path",
+     "approved_by_user": true}
+  ],
+  "environment": {
+    "os": "Linux (example)",
+    "harness": "custom pipeline tools/run_ticket.py",
+    "versions": {"ollama": "x.y.z", "python": "3.12"}
+  }
+}

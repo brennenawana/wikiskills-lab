@@ -5,9 +5,9 @@ explain themselves as they run.
 
 ## The idea
 
-Most teams improve their AI setup by feel: try a prompt, squint at the output,
-keep what seems better. That works until it doesn't — you cannot tell whether
-a change helped, and yesterday's fix quietly breaks tomorrow's tasks.
+Most teams improve their AI setup by feel: try a prompt, look at the output,
+keep what seems better. That works until it does not — you cannot tell
+whether a change helped, and yesterday's fix quietly breaks tomorrow's tasks.
 
 This repository applies the method from the WikiSkill paper
 (arXiv:2608.27454): treat improvements as **proposals that must prove
