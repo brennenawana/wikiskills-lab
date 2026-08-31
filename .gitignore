@@ -1,0 +1,11 @@
+# Everything generated for one user stays on their machine.
+workspace/*
+!workspace/README.md
+
+# Benchmark data is downloaded from its original sources, never stored here.
+benchmarks/spreadsheet/data/
+
+# The usual noise
+__pycache__/
+*.pyc
+.DS_Store
