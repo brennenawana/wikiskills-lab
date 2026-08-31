@@ -71,7 +71,9 @@ This is an early version. What works today:
 |---|---|
 | Step 1 — Interview | Ready |
 | Step 2 — Observe (recorder, checklist, probes) | Ready |
-| Steps 3–5 — Diagnose, Measure, Improve | Being built, in that order |
+| Step 3 — Diagnose (findings, ranking, chosen focus) | Ready |
+| Step 4 — Measure (suite, generated contract, baseline) | Ready |
+| Step 5 — Improve (the evolution loop) | Being built |
 | Spreadsheet case study | Complete — full record with receipts |
 
 ## Credits
