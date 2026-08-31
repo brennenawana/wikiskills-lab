@@ -44,6 +44,10 @@ FORBIDDEN_HISTORY = ["*.xlsx", "*.tar.gz", "evaluation.py",
                      "open_spreadsheet.py", "dataset.json",
                      "benchmarks/spreadsheet/data/*"]
 
+# Maintainer-local paths (dev notes about this repo) — gitignored, and this
+# gate also refuses them if force-added by accident.
+PRIVATE_PATHS = ["local/*", "NOTES.md", "TODO.md"]
+
 FAILURES = []
 
 
@@ -79,7 +83,12 @@ def gate_vocabulary():
             if found:
                 fail("%s contains banned term %r" % (path, term))
                 hits += 1
-    if not hits:
+    private = [f for f in files
+               if any(fnmatch.fnmatch(f, pat) for pat in PRIVATE_PATHS)]
+    for p in private:
+        fail("maintainer-local path is tracked: %s (dev notes never ship)"
+             % p)
+    if not hits and not private:
         ok("%d tracked files clean" % len(files))
 
 

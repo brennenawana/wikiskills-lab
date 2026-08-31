@@ -8,6 +8,13 @@ benchmarks/spreadsheet/data/
 benchmarks/spreadsheet/runs_local/
 benchmarks/spreadsheet/adapter/caps.json
 
+# Development notes about this repository itself stay on the maintainer's
+# machine and are never committed or shared. Keep any such docs in local/
+# (or as NOTES.md / TODO.md at the root) and they will not ship.
+local/
+NOTES.md
+TODO.md
+
 # The usual noise
 __pycache__/
 *.pyc
