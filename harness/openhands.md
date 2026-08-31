@@ -17,4 +17,5 @@ Strong case:
 
 - Improvement artifacts install as prompt/config changes and skill text the
   platform loads.
-- Specialized guidance grows in this file as the observe step lands.
+- Recorder: platform event log plus `engine/recorder/proxy.py` on the model
+  endpoint; verify with the probes in `steps/2-observe/probes.md`.

@@ -70,7 +70,8 @@ This is an early version. What works today:
 | Part | Status |
 |---|---|
 | Step 1 — Interview | Ready |
-| Steps 2–5 — Observe, Diagnose, Measure, Improve | Being built, in that order |
+| Step 2 — Observe (recorder, checklist, probes) | Ready |
+| Steps 3–5 — Diagnose, Measure, Improve | Being built, in that order |
 | Spreadsheet case study | Complete — full record with receipts |
 
 ## Credits

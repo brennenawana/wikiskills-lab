@@ -21,8 +21,15 @@ branch back." Very common, and a strong case for observation.
 - Result: usually the *most* observable harness of all, because everything
   passes through endpoints you control.
 
+## Concretely
+
+- Run one recording proxy per endpoint (`engine/recorder/proxy.py`): one for
+  the model server, one for the tracker API. Change only the base URLs in
+  the pipeline's config.
+- Verify first, always: `python3 engine/recorder/probe.py proxy`, then the
+  live canary in `steps/2-observe/probes.md`.
+
 ## Notes for later steps
 
 - Improvement artifacts install as prompt text, pipeline configuration, and
   policy rules for what gets fetched and included.
-- Specialized guidance grows in this file as the observe step lands.

@@ -17,4 +17,5 @@
 ## Notes for later steps
 
 - Improvement artifacts install as `AGENTS.md` edits and configuration.
-- Specialized guidance grows in this file as the observe step lands.
+- Recorder: point the base URL at `engine/recorder/proxy.py`; verify with
+  `probe.py proxy` and the live canary (`steps/2-observe/probes.md`).

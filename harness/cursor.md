@@ -21,4 +21,5 @@ Mixed, and say so honestly:
 ## Notes for later steps
 
 - Improvement artifacts install as rules-file edits and prompt/policy text.
-- Specialized guidance grows in this file as the observe step lands.
+- The plan faces the checklist and probes in `steps/2-observe/` like every
+  other setup; the self-report stream uses the snippet in the step-2 GUIDE.

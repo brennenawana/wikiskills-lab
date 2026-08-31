@@ -17,8 +17,15 @@ Strongest case. Everything is **measured**:
 
 Tell the user: observation is automatic here; they work exactly as normal.
 
+## Concretely
+
+- Actions: install the hooks pack — `engine/recorder/hooks/README.md`.
+- Token spend: session transcripts, or route API-mode traffic through the
+  recording proxy.
+- Verify first, always: `python3 engine/recorder/probe.py hook`, then the
+  live canary in `steps/2-observe/probes.md`.
+
 ## Notes for later steps
 
 - Improvement artifacts install as `CLAUDE.md` edits, skill files, and hook
   or settings changes — all text, all diffable.
-- Specialized guidance grows in this file as the observe step lands.
