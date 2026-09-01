@@ -44,7 +44,9 @@ measurement happen — once.
 The loop lives in `engine/evolve/loop.py`; the benchmark adapter shows the
 complete wiring (gateway + meter + rollout + roles) in ~30 lines. Every
 step checkpoints `state.json`; a budget stop or interruption resumes with
-the same command. Watch machine load before parallel seeds: count TOTAL
+the same command. Append a journal row when the run starts and when it ends
+(`--event session`), and one for every gate outcome worth finding again —
+an accepted skill, a budget stop, a plateau (`--event decision`). Watch machine load before parallel seeds: count TOTAL
 concurrent agent processes, and stay near 12–15 on a shared 16 GB machine.
 
 While it runs, the user does nothing. The wiki's `skill-impact.md` is the
@@ -85,9 +87,9 @@ verdict was defined before the data, so this part is mechanical.
 Then:
 
 - **Threshold met:** install as above; keep the wiki and run records —
-  they are the provenance. Offer to install or refresh the return-path
-  skill (`harness/return-path/README.md`) so the next improvement can
-  start from inside their project.
+  they are the provenance. Offer to install or refresh the coach skill
+  (`harness/skill/README.md`) so the next improvement can start from
+  inside their project.
 - **Not met:** the artifacts stay out, the baseline stands, and the record
   of what was tried is kept — a written record of a failed idea saves the
   next attempt from repeating it. Say this to the user without apology; it

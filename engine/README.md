@@ -19,4 +19,5 @@ python3 engine/recorder/probe.py hook
 | `evolve/` | The evolution loop (step 5): the three storage layers (`wikistore.py`) and the loop with its strict-improvement gate, plateau stop, and two proposer modes — CLI ReAct and packet mode for any backend (`loop.py`) |
 | `capsule/capsule.py` | Task capsules: pin repo commits, freeze fixture hashes, verify, and make disposable checkouts — never the live tree |
 | `report/report.py` | Before/after report with the noise floor stated and a hard warning when suite versions differ |
-| `selftest.py` | The proof: 32 checks covering the failure modes that actually happened in the field (undercounted usage, budget breaches, double looks, lost work on interruption, gate leaks) |
+| `journal.py` | The activity journal: append-only rows (stage, decision, artifact, install, ...) written at act time, secret-scrubbed, read back with `tail` so a session weeks later knows what happened last |
+| `selftest.py` | The proof: 47 checks covering the failure modes that actually happened in the field (undercounted usage, budget breaches, double looks, lost work on interruption, gate leaks, a record that gets rewritten) |

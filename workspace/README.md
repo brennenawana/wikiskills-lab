@@ -16,7 +16,8 @@ its numbered folder and are frozen when it finishes.
 | `ledgers/` | Records of observed work sessions: what was read, called, and spent. A growing pool — never reset | Step 2 |
 | `capsules/` | Frozen copies of observed tasks, so tests stay repeatable while your real work moves on | Step 2 |
 | `diagnosis/findings.md` | Findings from the ledger pool, updated as more sessions land | Step 3 |
-| `inbox/` | Notes you queued from inside your own project (the return-path skill); each becomes a candidate focus | Any time |
+| `inbox/` | Notes you queued from inside your own project (the coach skill); each becomes a candidate focus | Any time |
+| `journal.jsonl` | The append-only record of what was done and when — one line per stage, decision, artifact, and install. Never edited | Any time |
 | `engagements/<nnn-slug>/` | One engagement: `focus.md`, `suite/`, `contract/`, `runs/`, `REPORT.md` | Steps 3–5 |
 | `skills/` | Record copies of adopted artifacts, each with a provenance header (which engagement, which suite version, what it scored) | Step 5 |
 

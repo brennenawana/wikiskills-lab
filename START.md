@@ -10,9 +10,13 @@ under `workspace/engagements/`.
 
 ## First: find out where you are
 
-1. Read `workspace/profile/state.json` if it exists.
+1. Read `workspace/profile/state.json` if it exists, and the last rows of
+   the activity journal: `python3 engine/journal.py tail -n 10`. The state
+   file says where the work stopped; the journal says how it got there and
+   when. Open with one or two plain sentences of what they say, before
+   asking anything.
 2. Check `workspace/inbox/` for notes. Each note is something the user asked
-   for from inside their own project (via the return-path skill). Surface
+   for from inside their own project (via the coach skill). Surface
    unprocessed notes first, in their own words: *"On <date>, from
    <project>, you said: '<their words>' — want to make that the next
    focus?"*
@@ -32,7 +36,10 @@ your conversation history.
 Weeks may have passed. Before continuing:
 
 1. Summarize where they were in plain words — step, stage, what is already
-   done, what is next — from `state.json` and the engagement's own records.
+   done, what is next — from `state.json`, the journal's last rows, and the
+   engagement's own records. If the journal and `state.json` disagree, the
+   journal wins — it is written at the moment each thing happens and never
+   edited. Say so, then correct `state.json` from the files on disk.
 2. **Check that the world still matches the contract.** Compare what the
    engagement's `contract/CONTRACT.md` §3 recorded (model names, harness
    and tool versions, endpoints) against what is true now. A different
@@ -71,8 +78,19 @@ Each choice starts a new engagement folder: `workspace/engagements/`
    use your recommendation. Never present a wall of options without a default.
 3. **Write as you go.** Record answers and findings into `workspace/` the
    moment you have them — not at the end of a conversation. Update
-   `workspace/profile/state.json` whenever a stage completes. Conversations
-   get cut off; files survive.
+   `workspace/profile/state.json` whenever a stage completes, and append a
+   journal row for anything worth finding again later — a stage finished, a
+   decision made, an artifact written, something installed into their world,
+   a deviation from the contract:
+
+   ```
+   python3 engine/journal.py append --event stage --step 1-interview \
+     --note "Interview finished; profile and blast radius written."
+   ```
+
+   Events: `session`, `stage`, `decision`, `artifact`, `install`,
+   `deviation`, `inbox`, `engagement`. The journal is append-only — never
+   edit or delete a row. Conversations get cut off; files survive.
 4. **Their repos and their skill files are not yours.** Never modify, commit
    to, or run commands in the user's own repositories or skill directories
    unless they approve that specific action. Your writing space is
@@ -95,6 +113,8 @@ Each choice starts a new engagement folder: `workspace/engagements/`
   deleting the folder removes everything.
 - *"I have an idea for the skill."* — user proposals go through the same
   gate as the model's: `steps/5-improve/GUIDE.md`, "Your own ideas".
-- *"Can I start this from my project folder?"* — yes: the return-path
-  skill, `harness/return-path/README.md`.
+- *"Can I start this from my project folder?"* — yes: install the coach
+  skill (`harness/skill/README.md`, one command) and invoke it from any
+  project; other harnesses use `harness/return-path/README.md`.
+- *"What happened last time?"* — `python3 engine/journal.py tail -n 20`.
 - *"What does a word mean?"* — `docs/glossary.md`.

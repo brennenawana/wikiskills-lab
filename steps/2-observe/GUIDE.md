@@ -76,7 +76,13 @@ a real session costs the session.
    was not, and roughly what the task cost.
 3. Update `state.json` (`"step": "2-observe", "stage": "done"` — or bump a
    session counter if more tasks will be observed; two or three observed
-   tasks make step 3 much stronger).
+   tasks make step 3 much stronger), and record the session in the journal:
+
+   ```
+   python3 engine/journal.py append --event session --step 2-observe \
+     --note "Observed <task>: <n> rows, <tokens> tokens; gaps: <...>."
+   ```
+
 4. Tell the user what happens next: diagnosis (step 3) — and if it is not
    yet available in this version, say so and stop. The ledgers are safe and
    waiting.

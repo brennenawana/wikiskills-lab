@@ -26,9 +26,14 @@ Every term of art used in this repository, one plain sentence each.
   the optimizer roles; shown to them labeled as coming from the human.
 - **Provenance header** — the note on every installed artifact saying which
   engagement produced it, on which suite version, and what it scored.
-- **Return path** — the small skill installed in the user's own harness
-  that captures "I want to improve X" during daily work and queues it in
-  the coach's inbox.
+- **Activity journal** — `workspace/journal.jsonl`: the append-only record
+  of what the coach did and when, one line per stage, decision, artifact,
+  and install. A new session reads its last rows to say where the work
+  stopped.
+- **Coach skill** — the one skill that opens this repository from anywhere:
+  inside the checkout it runs the coach, from the user's own project it
+  captures "I want to improve X" and queues it in the inbox. Also called
+  the **return path** when used that second way.
 - **Task capsule** — a frozen, replayable copy of one real task: pinned
   repository versions plus recorded service data, so a test gives the same
   answer next month.

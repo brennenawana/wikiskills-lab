@@ -65,7 +65,14 @@ slug — for example `001-tracker-context`) and write `focus.md` inside it:
 
 If an inbox note led here, mark that note processed (move it into the
 engagement folder). Update `state.json` — `"step": "3-diagnose",
-"stage": "done", "engagement": "<nnn-slug>"` — then tell the user what
-happens next: step 4, the measuring stick. Everything from here through
+"stage": "done", "engagement": "<nnn-slug>"` — and open the engagement in
+the journal:
+
+```
+python3 engine/journal.py append --event engagement --step 3-diagnose \
+  --engagement <nnn-slug> --note "Focus chosen: <the sentence>."
+```
+
+Then tell the user what happens next: step 4, the measuring stick. Everything from here through
 step 5 lives in this engagement's folder; finished engagements are never
 edited.

@@ -17,6 +17,9 @@ improve() {
     echo "from: $(basename "$PWD")"
     echo "goal: $*"
   } > "$note"
+  python3 "$LAB_PATH/engine/journal.py" append --event inbox \
+    --where "$(basename "$PWD")" \
+    --note "Queued from daily work: $*" >/dev/null 2>&1
   echo "Noted in $note"
   echo "Open your agent in $LAB_PATH and say hello - it will pick this up."
 }

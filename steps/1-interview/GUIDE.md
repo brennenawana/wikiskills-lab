@@ -19,7 +19,9 @@ and resume at any point. Keep that promise — prefer fewer, better questions.
 - The user can say "you pick" or "skip" at any point. "You pick" means: use
   your recommendation and record that it was a default, not their choice.
 - Write answers into the profile files **as they are given** (formats below).
-  Update `state.json` when a stage completes.
+  Update `state.json` when a stage completes, and append one journal row per
+  completed stage:
+  `python3 engine/journal.py append --event stage --step 1-interview --note "..."`.
 
 ## The stages
 
@@ -90,10 +92,13 @@ on it. Record the choice in `profile/profile.md`.
 
 Then close the interview: summarize the whole profile back in under ten
 sentences, ask for corrections, and tell them what happens next (step 2).
-Finally, offer to install the **return-path skill**
-(`harness/return-path/README.md`): a small skill in their own harness that
-lets them queue the next improvement from inside their project folder. If
-they decline, note it and move on — it is offered again at step-5 adoption.
+Finally, offer to install the **coach skill** (`harness/skill/README.md`,
+one command: `python3 scripts/install_skill.py`): it lets them reopen this
+work from anywhere, and queue the next improvement from inside their own
+project folder without leaving it. Harnesses without a skills directory use
+the snippets in `harness/return-path/README.md` instead. Installing into
+their world is their call — if they decline, note it and move on; it is
+offered again at step-5 adoption.
 
 ## Files this step owns
 

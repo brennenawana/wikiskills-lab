@@ -104,7 +104,17 @@ amend the contract with the user, resume the same command.
 
 ## Close out
 
-Update `state.json` (`"step": "4-measure", "stage": "done"`). Files this
+Update `state.json` (`"step": "4-measure", "stage": "done"`) and record the
+baseline in the journal — the number and its cost, so a session weeks later
+can quote it without re-reading the run:
+
+```
+python3 engine/journal.py append --event artifact --step 4-measure \
+  --engagement <nnn-slug> \
+  --note "Baseline: <score> at <cost> per run; suite v<n>, contract frozen."
+```
+
+Files this
 step owns: `workspace/engagements/<current>/suite/suite.json`, `workspace/engagements/<current>/contract/
 {CONTRACT.md, caps.json, binding.json}`, `workspace/engagements/<current>/runs/baseline/`.
 Tell the user what happens next: step 5, the improvement loop — and if it

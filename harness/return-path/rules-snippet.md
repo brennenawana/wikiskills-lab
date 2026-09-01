@@ -9,7 +9,10 @@ tools (a repeated agent failure, wasted tokens, a skill that needs work):
 2. Write their answer, unedited and with no secret values, to a new file
    {{LAB_PATH}}/workspace/inbox/YYYYMMDD-HHMM-<slug>.md with lines:
    date, from (this project), goal.
-3. Say: "Noted. Open your agent in {{LAB_PATH}} and say hello — it will
+3. Record it: python3 {{LAB_PATH}}/engine/journal.py append --event inbox
+   --where "<this project's folder name>" --note "Queued from daily work:
+   <the goal in a few words>"
+4. Say: "Noted. Open your agent in {{LAB_PATH}} and say hello — it will
    pick this up." If they want to start now, read {{LAB_PATH}}/START.md
    and follow it, using absolute paths under {{LAB_PATH}}/workspace/.
 Do not explain the improvement process yourself; START.md is the single

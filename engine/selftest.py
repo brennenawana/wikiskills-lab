@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(HERE, "measure"))
 sys.path.insert(0, os.path.join(HERE, "evolve"))
 sys.path.insert(0, os.path.join(HERE, "capsule"))
 sys.path.insert(0, os.path.join(HERE, "report"))
+sys.path.insert(0, HERE)
 
 from meter import Meter, BudgetStop, LookLedger      # noqa: E402
 from gateway import Gateway, parse_cli_result, extract_json  # noqa: E402
@@ -32,6 +33,7 @@ import wikistore                                     # noqa: E402
 import loop as loop_mod                              # noqa: E402
 import capsule as capsule_mod                        # noqa: E402
 import report as report_mod                          # noqa: E402
+import journal as journal_mod                        # noqa: E402
 
 RESULTS = []
 
@@ -417,9 +419,70 @@ def test_report():
           "NOT comparable" in mixed)
 
 
+# ---------------------------------------------------------------- journal
+
+def test_journal():
+    print("Activity journal:")
+    ws = tmpdir()
+    path = os.path.join(ws, "journal.jsonl")
+
+    journal_mod.append("First stage done", event="stage",
+                       step="1-interview", path=path)
+    journal_mod.append("Focus chosen", event="engagement",
+                       engagement="001-retries", where="my-project",
+                       path=path)
+    rows = journal_mod.read(path=path)
+    check("rows land in order, nothing lost",
+          [r["note"] for r in rows] == ["First stage done", "Focus chosen"])
+    check("fields recorded",
+          rows[1]["event"] == "engagement"
+          and rows[1]["engagement"] == "001-retries"
+          and rows[1]["where"] == "my-project"
+          and rows[1]["utc"].endswith("Z"))
+
+    # Append-only: the first row is byte-identical after later writes.
+    first_line = open(path, encoding="utf-8").readlines()[0]
+    journal_mod.append("Third thing", event="artifact", path=path)
+    check("earlier rows are never rewritten",
+          open(path, encoding="utf-8").readlines()[0] == first_line)
+
+    journal_mod.append("A note\nwith a newline\tand a tab", path=path)
+    lines = open(path, encoding="utf-8").readlines()
+    check("one row is always one line", len(lines) == 4
+          and "newline and a tab" in lines[3])
+
+    journal_mod.append("token is sk-ABCDEFGH12345678 here", path=path)
+    text = open(path, encoding="utf-8").read()
+    check("secret-shaped text is scrubbed on the way in",
+          "sk-ABCDEFGH12345678" not in text and "[SCRUBBED]" in text)
+
+    bad = 0
+    for note, event in (("", "session"), ("   ", "session"),
+                        ("fine", "not-an-event")):
+        try:
+            journal_mod.append(note, event=event, path=path)
+        except ValueError:
+            bad += 1
+    check("empty notes and unknown events are refused", bad == 3)
+
+    with open(path, "a", encoding="utf-8") as fh:
+        fh.write("this is not json\n")
+    tail = journal_mod.tail(2, path=path)
+    check("unreadable lines are skipped, not fatal",
+          len(tail) == 2 and tail[-1]["note"].startswith("token is"))
+
+    check("tail of an absent journal is empty, not an error",
+          journal_mod.tail(5, path=os.path.join(ws, "nope.jsonl")) == [])
+
+    fresh = os.path.join(tmpdir(), "sub", "journal.jsonl")
+    journal_mod.append("first ever row", path=fresh)
+    check("journal creates its own folder on first write",
+          os.path.exists(fresh))
+
+
 def main():
     for fn in (test_meter, test_looks, test_gateway, test_runner,
-               test_evolve, test_capsule, test_report):
+               test_evolve, test_capsule, test_report, test_journal):
         fn()
         print()
     failed = RESULTS.count(False)

@@ -57,6 +57,10 @@ Read it before you trust us.
 That is the whole setup. The interview begins, and everything after that is
 explained as it happens.
 
+Optional, once: `python3 scripts/install_skill.py` installs a small skill so
+you can reopen this work — or queue the next improvement — from inside any
+project, without leaving it. Details: [`harness/skill/`](harness/skill/).
+
 ## Your data stays yours
 
 Everything generated for you — answers, recordings, test tasks, results — lives
@@ -76,7 +80,7 @@ This is an early version. What works today:
 | Step 5 — Improve (the evolution loop, gate, report) | Ready |
 | Spreadsheet case study | Complete — record, receipts, and a runnable reproduction |
 | Sample artifacts (what your workspace files will look like) | Ready — [`examples/sample-artifacts/`](examples/sample-artifacts/) |
-| Coming back: more engagements, resume, revisiting skills, your own proposals, the return-path skill | Ready |
+| Coming back: more engagements, resume, revisiting skills, your own proposals, the coach skill and activity journal | Ready |
 
 ## Credits
 

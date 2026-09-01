@@ -31,5 +31,8 @@ Tell the user: observation is automatic here; they work exactly as normal.
   or settings changes — all text, all diffable. Skills usually live in the
   project's or user's skills directory; record the exact location in the
   profile's skill inventory, and never write there without approval.
-- Return path: install `return-path/claude-code-skill.md` as a skill, with
-  the lab checkout path filled in.
+- Coach skill: `python3 scripts/install_skill.py` installs
+  `harness/skill/SKILL.md` with the checkout path filled in — one door for
+  both directions (open the coach here, or queue an improvement from the
+  user's own project). `--dest <project>/.claude/skills` for a
+  project-scoped copy. Details: `harness/skill/README.md`.
