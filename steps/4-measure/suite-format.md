@@ -1,6 +1,6 @@
 # Suite format
 
-`workspace/suite/suite.json` — the frozen measuring stick.
+`workspace/engagements/<current>/suite/suite.json` — the frozen measuring stick.
 
 ```json
 {"v": 1, "name": "ticket-context", "version": "1",
@@ -37,13 +37,13 @@
   or recorded captures — never a live system that will have moved on.
 - `version` changes whenever any task or scorer changes, and numbers are
   comparable only within one version.
-- Keep checker scripts under `workspace/suite/checkers/` so the whole
+- Keep checker scripts under `workspace/engagements/<current>/suite/checkers/` so the whole
   measuring stick travels as one folder.
 
 ## Outputs (written by the runner)
 
-- `workspace/runs/<name>/results.jsonl` — one row per task, appended as
+- `workspace/engagements/<current>/runs/<name>/results.jsonl` — one row per task, appended as
   each finishes (interruptions lose nothing).
-- `workspace/runs/<name>/summary.json` — mean score, per-task scores,
+- `workspace/engagements/<current>/runs/<name>/summary.json` — mean score, per-task scores,
   total cost, error count; recomputed from the results file.
-- `workspace/runs/<name>/spend.jsonl` — the meter's ledger for the run.
+- `workspace/engagements/<current>/runs/<name>/spend.jsonl` — the meter's ledger for the run.

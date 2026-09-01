@@ -19,6 +19,16 @@ Every term of art used in this repository, one plain sentence each.
   ledger is ever edited or deleted.
 - **Blast radius** — everything a task can touch: all repositories plus all
   outside services.
+- **Engagement** — one improvement, start to finish: a chosen focus, its
+  suite, its contract, its runs, its report; each lives in its own numbered
+  folder and is frozen when finished.
+- **Owner notes** — a file in a run's wiki where the human leaves hints for
+  the optimizer roles; shown to them labeled as coming from the human.
+- **Provenance header** — the note on every installed artifact saying which
+  engagement produced it, on which suite version, and what it scored.
+- **Return path** — the small skill installed in the user's own harness
+  that captures "I want to improve X" during daily work and queues it in
+  the coach's inbox.
 - **Task capsule** — a frozen, replayable copy of one real task: pinned
   repository versions plus recorded service data, so a test gives the same
   answer next month.

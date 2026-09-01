@@ -5,10 +5,13 @@ task suite, mechanical scorers, generated rules the user approves, and
 today's baseline score. Nothing in step 5 may run before all of that
 exists.
 
-Input: `workspace/diagnosis/focus.md`. Tools: `engine/measure/runner.py`
+Input: `workspace/engagements/<current>/focus.md`. Tools: `engine/measure/runner.py`
 (the suite runner), `engine/budget/meter.py` (enforced by the runner),
 `engine/selftest.py` (run it once first — same rule as the recorder
 probes: nothing is trusted until proven on this machine).
+
+`<current>` throughout means the active engagement folder named in
+`workspace/profile/state.json`.
 
 ## Stage 1 — Define the metric with the user
 
@@ -51,10 +54,10 @@ In order of preference:
 ## Stage 4 — Dry run (free, mandatory)
 
 ```
-python3 engine/measure/runner.py --suite workspace/suite/suite.json \
+python3 engine/measure/runner.py --suite workspace/engagements/<current>/suite/suite.json \
     --models workspace/profile/models.json --role executor \
-    --caps workspace/contract/caps.json --run-name dryrun \
-    --out workspace/runs --dry-run
+    --caps workspace/engagements/<current>/contract/caps.json --run-name dryrun \
+    --out workspace/engagements/<current>/runs --dry-run
 ```
 
 The canned backend answers every task for free; what this proves is the
@@ -63,28 +66,28 @@ spent. A scorer that errors here would have wasted the baseline.
 
 ## Stage 5 — Generate the rules, get approval, freeze
 
-Fill `contract-template.md` into `workspace/contract/CONTRACT.md`:
+Fill `contract-template.md` into `workspace/engagements/<current>/contract/CONTRACT.md`:
 budgets in the user's own cost unit (dollars, tokens, GPU-minutes — from
 the interview's cost reality), a measured-not-guessed projection per task
 (from the dry run's shape and one or two priced calls if needed), stop
 rules with named consequences, and the look plan for any held-out part.
 Walk the user through it in plain words — **approved, not assigned as
 reading**. Then freeze: write `caps.json`, and record SHA-256 hashes of
-`suite.json` and `caps.json` in `workspace/contract/binding.json`. After
+`suite.json` and `caps.json` in `workspace/engagements/<current>/contract/binding.json`. After
 the freeze, changes are amendments at the bottom of the contract, never
 silent edits.
 
 ## Stage 6 — Run the baseline
 
 ```
-python3 engine/measure/runner.py --suite workspace/suite/suite.json \
+python3 engine/measure/runner.py --suite workspace/engagements/<current>/suite/suite.json \
     --models workspace/profile/models.json --role executor \
-    --caps workspace/contract/caps.json --run-name baseline \
-    --out workspace/runs
+    --caps workspace/engagements/<current>/contract/caps.json --run-name baseline \
+    --out workspace/engagements/<current>/runs
 ```
 
 The runner prechecks the meter before every task, checkpoints every
-result, and writes `workspace/runs/baseline/summary.json`. If it stops on
+result, and writes `workspace/engagements/<current>/runs/baseline/summary.json`. If it stops on
 a cap: that is the system working — re-project from the measured rows,
 amend the contract with the user, resume the same command.
 
@@ -102,8 +105,8 @@ amend the contract with the user, resume the same command.
 ## Close out
 
 Update `state.json` (`"step": "4-measure", "stage": "done"`). Files this
-step owns: `workspace/suite/suite.json`, `workspace/contract/
-{CONTRACT.md, caps.json, binding.json}`, `workspace/runs/baseline/`.
+step owns: `workspace/engagements/<current>/suite/suite.json`, `workspace/engagements/<current>/contract/
+{CONTRACT.md, caps.json, binding.json}`, `workspace/engagements/<current>/runs/baseline/`.
 Tell the user what happens next: step 5, the improvement loop — and if it
 is not yet available in this version, say so and stop; the baseline is
 frozen and waiting.

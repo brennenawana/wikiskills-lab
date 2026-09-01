@@ -5,7 +5,7 @@ only what provably helps, and end with a before/after number plus artifacts
 installed into daily work.
 
 Preconditions, all hard: an approved, frozen contract
-(`workspace/contract/`), a baseline (`workspace/runs/baseline/`), and green
+(`workspace/engagements/<current>/contract/`), a baseline (`workspace/engagements/<current>/runs/baseline/`), and green
 `engine/selftest.py` on this machine. The loop's method comes from the
 WikiSkill paper (`prompts/NOTICE.md`); the full real example of this step is
 `benchmarks/spreadsheet/`.
@@ -54,13 +54,13 @@ first thing to read when curious about what happened.
 ## Stage 3 — The held-out measurement
 
 One look per evolved skill set, planned in the contract, spent in
-`workspace/runs/looks.jsonl` BEFORE the evaluation starts, exactly as the
+`workspace/engagements/<current>/runs/looks.jsonl` BEFORE the evaluation starts, exactly as the
 engine's look ledger enforces. Nobody — human or agent — reads per-task
 results before the comparison is computed. Then generate the report:
 
 ```
-python3 engine/report/report.py --before workspace/runs/baseline/summary.json \
-    --after workspace/runs/after/summary.json --out workspace/runs/REPORT.md
+python3 engine/report/report.py --before workspace/engagements/<current>/runs/baseline/summary.json \
+    --after workspace/engagements/<current>/runs/after/summary.json --out workspace/engagements/<current>/runs/REPORT.md
 ```
 
 The report states the change, the noise floor for the suite's size, and
@@ -69,10 +69,25 @@ verdict was defined before the data, so this part is mechanical.
 
 ## Stage 4 — Adopt, or roll back
 
-- **Threshold met:** install the accepted artifacts into daily work (the
-  harness note in `harness/` says where they live — instruction files,
-  skills directories, pipeline config). Keep the wiki and the run records;
-  they are the provenance.
+**The user's skill files are theirs.** Three rules govern adoption:
+
+1. Installing an artifact into their world (their skills directory,
+   instruction file, or pipeline config — the harness note in `harness/`
+   says where) is always an **explicit, approved step**. Never a silent
+   write.
+2. Every installed artifact carries a **provenance header**: which
+   engagement produced it, which suite version, what it scored. A record
+   copy stays in `workspace/skills/`.
+3. Hand edits afterwards are always allowed — it is their file — but a
+   hand edit **expires the before/after claim**. To get the number back,
+   the edit goes through the gate as a proposal (see below).
+
+Then:
+
+- **Threshold met:** install as above; keep the wiki and run records —
+  they are the provenance. Offer to install or refresh the return-path
+  skill (`harness/return-path/README.md`) so the next improvement can
+  start from inside their project.
 - **Not met:** the artifacts stay out, the baseline stands, and the record
   of what was tried is kept — a written record of a failed idea saves the
   next attempt from repeating it. Say this to the user without apology; it
@@ -81,10 +96,51 @@ verdict was defined before the data, so this part is mechanical.
   suite goes stale (the work has changed), redraw it from fresh observed
   tasks under a new suite version and a new baseline.
 
+## Your own ideas (user proposals)
+
+The gate does not care who wrote a proposal. Two ways in:
+
+- **A direct proposal.** The user's idea, formatted as the same
+  create/patch object the proposer uses (format:
+  `prompts/skill-proposer.txt`), submitted with
+  `engine/evolve/loop.py::apply_user_proposal` — the benchmark adapter
+  shows the wiring (`run.py propose`). It is evaluated on the validation
+  tasks, accepted only on strict improvement, and recorded in
+  `skill-impact.md` with `author: user`. Same rules, same budgets, one
+  difference: a **rejected** user proposal does not advance the loop's
+  plateau counter (a human experiment is not a proposer failure); an
+  accepted one resets it.
+- **A hint.** Write the idea into the run's `wiki/owner-notes.md`
+  ("I think the real cause is X — look at trace Y"). Both optimizer roles
+  see it in their context, labeled as coming from the human owner. It
+  steers the next iteration without bypassing anything.
+
+## Revisiting and improving existing skills
+
+For a workflow that shifted, an adopted artifact worth re-checking, or a
+skill file the user wrote themselves and wants improved. It is the same
+machinery — **the existing skill is the base** — plus two specifics:
+
+1. Open a new engagement (step 3, focus = this skill's job), and build the
+   suite from **current** work under a new suite version: the old suite
+   measured the old workflow.
+2. Run the baseline **twice — with and without the skill**. One extra
+   suite run, and it answers the question everything depends on: what is
+   this skill contributing today? If the answer is nothing (or harm), the
+   honest options are rewrite or retirement, and the user should choose
+   knowing that number.
+
+Then: copy the skill into the new run's `skills/` layer before starting
+the loop — the loop's baseline is measured with it active, the proposer
+patches it through the gate (in packet mode it receives the full current
+skill text, so patch targets can match exactly), and adoption writes the
+improved version back to their real file with approval, per the rules
+above.
+
 ## Files this step owns
 
-- `workspace/runs/<run>/` — state.json, wiki/, skills/, raw/ traces,
+- `workspace/engagements/<current>/runs/<run>/` — state.json, wiki/, skills/, raw/ traces,
   spend.jsonl per evolution run
-- `workspace/runs/looks.jsonl` — the held-out look ledger
-- `workspace/runs/REPORT.md` — the before/after report
+- `workspace/engagements/<current>/runs/looks.jsonl` — the held-out look ledger
+- `workspace/engagements/<current>/runs/REPORT.md` — the before/after report
 - `workspace/skills/` — adopted artifacts, copied from the winning run

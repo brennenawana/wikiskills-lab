@@ -215,12 +215,8 @@ class Roles:
                     shutil.rmtree(alias)
         else:
             system += PACKET_NOTE
-            user = head + ("## wiki (full)\n\n%s\n\n"
-                           "## Sampled execution traces\n\n%s\n\n"
-                           "Produce your proposal JSON object now."
-                           % (wikistore.wiki_context(run_dir),
-                              _sample_traces(results, trace_dir,
-                                             seed=iteration + 7)))
+            user = head + _packet_proposer_context(run_dir, results,
+                                                   trace_dir, iteration)
             result = self.gw.call(self.cfg, user, system=system,
                                   max_tokens=8192)
 
@@ -232,9 +228,91 @@ class Roles:
         return proposal
 
 
+def _packet_proposer_context(run_dir, results, trace_dir, iteration):
+    """Everything a tool-less (packet-mode) proposer needs in one message.
+
+    The current skill files are included IN FULL: a patch proposal's
+    `replace` targets must match the existing text exactly, which is
+    impossible for a model that cannot read the files."""
+    run_dir = Path(run_dir)
+    skills = wikistore.skills_text(run_dir / "skills") or "(no skills yet)"
+    return ("## Current skill files (full text — patch targets must match "
+            "this exactly)\n\n%s\n\n"
+            "## wiki (full)\n\n%s\n\n"
+            "## Sampled execution traces\n\n%s\n\n"
+            "Produce your proposal JSON object now."
+            % (skills, wikistore.wiki_context(run_dir),
+               _sample_traces(results, trace_dir, seed=iteration + 7)))
+
+
 def _checkpoint(run_dir, state):
     (Path(run_dir) / "state.json").write_text(json.dumps(state, indent=2),
                                               encoding="utf-8")
+
+
+def apply_user_proposal(run_dir, proposal, val_tasks, rollout_fn,
+                        author="user"):
+    """A human-authored proposal enters the SAME gate as a model's.
+
+    The proposal is the standard create/patch object (see
+    steps/5-improve/prompts/skill-proposer.txt for the format). It is
+    staged, evaluated on the validation tasks, and accepted only on strict
+    improvement — recorded in skill-impact.md with its author. A rejected
+    user proposal does not advance the loop's plateau counter (a human
+    experiment is not a proposer failure); an accepted one resets it.
+
+    Returns {"outcome", "score", "best"}.
+    """
+    run_dir = Path(run_dir)
+    wikistore.init_workspace(run_dir)
+    state_file = run_dir / "state.json"
+    state = (json.loads(state_file.read_text(encoding="utf-8"))
+             if state_file.exists() else
+             {"iteration_done": 0, "r_best": None, "accepted": [],
+              "plateau": 0, "stop_reason": None})
+
+    def mean(results):
+        return sum(r["score"] for r in results) / max(len(results), 1)
+
+    if state["r_best"] is None:   # no baseline yet: measure it first
+        base = rollout_fn(val_tasks,
+                          wikistore.skills_text(run_dir / "skills"), 0,
+                          None)
+        state["r_best"] = mean(base)
+        _checkpoint(run_dir, state)
+
+    it = state["iteration_done"]
+    cand = wikistore.stage_candidate(run_dir)
+    changed, diff, notes = wikistore.apply_proposal(cand, proposal)
+    if not changed:
+        wikistore.record_skill_impact(
+            run_dir, iteration=it, proposal=proposal, val_score="-",
+            best_before=state["r_best"],
+            outcome="INVALID (%s)" % "; ".join(notes), diff="",
+            author=author)
+        return {"outcome": "invalid", "score": None,
+                "best": state["r_best"], "notes": notes}
+
+    val_results = rollout_fn(val_tasks, wikistore.skills_text(cand), it,
+                             None)
+    score = mean(val_results)
+    accepted = score > state["r_best"]
+    wikistore.record_skill_impact(
+        run_dir, iteration=it, proposal=proposal,
+        val_score="%.4f" % score, best_before=state["r_best"],
+        outcome="ACCEPTED" if accepted else "REJECTED", diff=diff,
+        author=author)
+    if accepted:
+        wikistore.promote_candidate(run_dir)
+        state["r_best"] = score
+        state["accepted"].append(
+            {"iteration": it, "action": proposal.get("action"),
+             "name": proposal.get("name"), "val": score,
+             "author": author})
+        state["plateau"] = 0
+    _checkpoint(run_dir, state)
+    return {"outcome": "accepted" if accepted else "rejected",
+            "score": score, "best": state["r_best"]}
 
 
 def run_evolution(run_dir, train, val, rollout_fn, roles, *, k=8,

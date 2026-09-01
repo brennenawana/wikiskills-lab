@@ -1,6 +1,6 @@
 # Contract template
 
-The agent fills this template into `workspace/contract/CONTRACT.md` in
+The agent fills this template into `workspace/engagements/<current>/contract/CONTRACT.md` in
 stage 5 of the step-4 guide, then walks the user through every section in
 plain words. The user approves; the file freezes; afterwards only the
 amendment log changes. Replace every `{{...}}`; delete nothing else.
@@ -18,13 +18,13 @@ For a fully worked real example of a frozen contract with amendments, see
 
 ## 1. Question and metric
 
-- Focus: {{ONE_SENTENCE_FOCUS — from workspace/diagnosis/focus.md}}
+- Focus: {{ONE_SENTENCE_FOCUS — from workspace/engagements/<current>/focus.md}}
 - Metric: {{ONE_SENTENCE_METRIC — definition, direction, unit}}
 - Decision this measurement drives: {{WHAT_THE_USER_WILL_DO_WITH_THE_NUMBER}}
 
 ## 2. Frozen measuring stick
 
-- Suite: `workspace/suite/suite.json`, version {{V}}, {{N}} tasks,
+- Suite: `workspace/engagements/<current>/suite/suite.json`, version {{V}}, {{N}} tasks,
   SHA-256 `{{SUITE_HASH}}`.
 - Held-out part: {{TASK_IDS_OR_"none — before/after measurement only"}}.
 - Scorers: {{LIST_SCORER_KINDS}}. No scorer changes within a suite
@@ -55,7 +55,7 @@ finding about cost — reported, never quietly raised.
 ## 5. Looks at held-out tasks
 
 {{IF_HELD_OUT: "One look per {{run/variant}}, planned here: {{LIST}}.
-Each look is written to workspace/runs/looks.jsonl before its evaluation
+Each look is written to workspace/engagements/<current>/runs/looks.jsonl before its evaluation
 starts. Any unplanned look downgrades the affected comparison to
 INCONCLUSIVE." ELSE: "No held-out part; every measurement is a full-suite
 run, recorded in the run ledger."}}
@@ -91,7 +91,7 @@ run, recorded in the run ledger."}}
 ## 9. Approval record
 
 - Presented to the owner in plain words on {{DATE}}; approved on {{DATE}}.
-- Frozen: hashes recorded in `workspace/contract/binding.json`.
+- Frozen: hashes recorded in `workspace/engagements/<current>/contract/binding.json`.
 
 ## 10. Amendment log (append-only)
 

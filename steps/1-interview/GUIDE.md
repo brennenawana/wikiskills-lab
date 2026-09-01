@@ -74,6 +74,12 @@ Record the harness, the chosen observation plan, and model endpoints in
 `profile/harness.md`. If nothing in `harness/` matches, use
 `harness/fallback.md` and say plainly that observation will be weaker.
 
+Also inventory their **existing skill and instruction files** (locations
+and names, with their permission — never edit them): these are part of
+their world, they are active during observation and baselines, and step 5
+may later propose improving one of them. Record the inventory in
+`profile/harness.md`.
+
 ### Stage 4 — Pick the first task to observe
 
 Ask for a real task coming up soon — a ticket they would do this week anyway.
@@ -83,15 +89,19 @@ that they should work exactly as they always do — the value of step 2 depends
 on it. Record the choice in `profile/profile.md`.
 
 Then close the interview: summarize the whole profile back in under ten
-sentences, ask for corrections, and tell them what happens next (step 2 — and
-if step 2 is not yet available in this version, say so and stop there; their
-profile is safe and will be used when it lands).
+sentences, ask for corrections, and tell them what happens next (step 2).
+Finally, offer to install the **return-path skill**
+(`harness/return-path/README.md`): a small skill in their own harness that
+lets them queue the next improvement from inside their project folder. If
+they decline, note it and move on — it is offered again at step-5 adoption.
 
 ## Files this step owns
 
 - `workspace/profile/state.json` — progress marker. Format:
-  `{"step": "1-interview", "stage": 2, "updated_utc": "2026-08-31T17:00:00Z"}`
-  Stages: 0–4, then `"stage": "done"`.
+  `{"step": "1-interview", "stage": 2, "engagement": null,
+  "updated_utc": "2026-08-31T17:00:00Z"}`
+  Stages: 0–4, then `"stage": "done"`. From step 3 onward, `"engagement"`
+  names the active folder under `workspace/engagements/`.
 - `workspace/profile/profile.md` — running answers, grouped by stage, each
   marked `(user)` or `(default)` for how it was decided.
 - `workspace/profile/blast-radius.md` — the two tables from stage 1.

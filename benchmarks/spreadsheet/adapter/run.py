@@ -3,7 +3,9 @@
 
   python3 run.py verify              # data + checker + manifest sanity
   python3 run.py evolve --run-name C-s1 --optimizer claude-opus-5 \
-      [--executor claude-haiku-4-5] [--split-seed-tasks N]
+      [--executor claude-haiku-4-5]
+  python3 run.py propose --run-name C-s1 --file my_idea.json
+                                     # a human idea, through the same gate
   python3 run.py eval --run-name eval-C-s1 --skills-from C-s1 --split test
 
 Every command is metered (caps.json here; edit before real runs) and
@@ -90,6 +92,23 @@ def cmd_evolve(args):
     print(json.dumps(state, indent=1))
 
 
+def cmd_propose(args):
+    """A user-authored proposal (create/patch JSON) into an existing run,
+    through the same strict-improvement gate as the model's proposals."""
+    proposal = json.loads(Path(args.file).read_text())
+    manifest = sbench.load_manifest()
+    val = sbench.tasks_by_id(manifest["splits"]["val"])
+    run_dir = RUNS / args.run_name
+    meter = get_meter(args.run_name)
+    tag = {"run": args.run_name}
+    gw = Gateway(prices=PRICES)
+    executor_cfg = {"kind": "claude-cli", "model": args.executor}
+    rollout = sbench.make_rollout_fn(gw, executor_cfg,
+                                     run_dir / "workdirs", meter, tag)
+    result = loop_mod.apply_user_proposal(run_dir, proposal, val, rollout)
+    print(json.dumps(result, indent=1))
+
+
 def cmd_eval(args):
     manifest = sbench.load_manifest()
     tasks = sbench.tasks_by_id(manifest["splits"][args.split])
@@ -145,6 +164,11 @@ def main():
     e.add_argument("--run-name", required=True)
     e.add_argument("--optimizer", required=True)
     e.add_argument("--executor", default="claude-haiku-4-5")
+    p = sub.add_parser("propose")
+    p.add_argument("--run-name", required=True)
+    p.add_argument("--file", required=True,
+                   help="JSON file with the create/patch proposal")
+    p.add_argument("--executor", default="claude-haiku-4-5")
     v = sub.add_parser("eval")
     v.add_argument("--run-name", required=True)
     v.add_argument("--skills-from", default=None)
@@ -153,7 +177,7 @@ def main():
     v.add_argument("--executor", default="claude-haiku-4-5")
     args = ap.parse_args()
     os.makedirs(RUNS, exist_ok=True)
-    {"verify": cmd_verify, "evolve": cmd_evolve,
+    {"verify": cmd_verify, "evolve": cmd_evolve, "propose": cmd_propose,
      "eval": cmd_eval}[args.cmd](args)
 
 

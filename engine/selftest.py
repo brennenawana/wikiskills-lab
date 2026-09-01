@@ -308,6 +308,53 @@ def test_evolve():
           extract_json("Here you go:\n{\"action\": \"no_action\"}\nDone.")
           == {"action": "no_action"})
 
+    # --- user proposals: same gate, author recorded, plateau rules ---
+    plateau_before = json.load(open(os.path.join(run_dir,
+                                                 "state.json")))["plateau"]
+    good = loop_mod.apply_user_proposal(
+        run_dir, {"action": "patch", "name": "good_skill",
+                  "edits": [{"op": "append", "content": "USER IDEA"}]},
+        tasks, lambda t, s, i, td: [
+            {"id": x["id"], "score": 0.8 if "USER IDEA" in s
+             else (0.2 if "BAD ADVICE" in s else 0.6), "crash": False}
+            for x in t])
+    skills_md = open(os.path.join(run_dir, "skills", "good_skill",
+                                  "SKILL.md")).read()
+    check("user proposal through the same gate: accepted and promoted",
+          good["outcome"] == "accepted" and "USER IDEA" in skills_md)
+    state_now = json.load(open(os.path.join(run_dir, "state.json")))
+    check("accepted user proposal resets the plateau",
+          plateau_before >= 3 and state_now["plateau"] == 0
+          and state_now["accepted"][-1]["author"] == "user")
+    bad = loop_mod.apply_user_proposal(
+        run_dir, {"action": "patch", "name": "good_skill",
+                  "edits": [{"op": "append", "content": "BAD ADVICE"}]},
+        tasks, lambda t, s, i, td: [
+            {"id": x["id"], "score": 0.2 if "BAD ADVICE" in s else 0.8,
+             "crash": False} for x in t])
+    check("bad user proposal rejected; skills untouched; plateau unmoved",
+          bad["outcome"] == "rejected"
+          and "BAD ADVICE" not in open(os.path.join(
+              run_dir, "skills", "good_skill", "SKILL.md")).read()
+          and json.load(open(os.path.join(run_dir,
+                                          "state.json")))["plateau"] == 0)
+    impact = open(os.path.join(run_dir, "wiki", "skill-impact.md")).read()
+    check("impact history names the human author",
+          "(author: user)" in impact)
+
+    # --- owner notes + packet-mode context ---
+    with open(os.path.join(run_dir, "wiki", "owner-notes.md"), "w") as fh:
+        fh.write("Look at the retry helper first.")
+    ctx = wikistore.wiki_context(run_dir)
+    check("owner notes reach the optimizer context, labeled human",
+          "Look at the retry helper first." in ctx
+          and "written by the human owner" in ctx)
+    trace_dir = os.path.join(run_dir, "raw", "iter_1")
+    packet = loop_mod._packet_proposer_context(
+        run_dir, [{"id": "a", "score": 0.0, "crash": False}], trace_dir, 1)
+    check("packet-mode proposer sees full current skill text",
+          "USER IDEA" in packet and "Current skill files" in packet)
+
 
 # ---------------------------------------------------------------- capsule
 

@@ -39,6 +39,12 @@ def wiki_context(run_dir):
     for rel in ["wiki/index.md", "wiki/log.md"]:
         parts.append("=== %s ===\n%s"
                      % (rel, (run_dir / rel).read_text(encoding="utf-8")))
+    # Human hints: the run's owner may leave notes for the optimizer roles.
+    notes = run_dir / "wiki" / "owner-notes.md"
+    if notes.exists():
+        parts.append("=== wiki/owner-notes.md (written by the human owner "
+                     "— treat as strong hints) ===\n%s"
+                     % notes.read_text(encoding="utf-8"))
     for p in sorted((run_dir / "wiki" / "patterns").glob("*.md")):
         parts.append("=== wiki/patterns/%s ===\n%s"
                      % (p.name, p.read_text(encoding="utf-8")))
@@ -191,12 +197,15 @@ def promote_candidate(run_dir):
 
 
 def record_skill_impact(run_dir, *, iteration, proposal, val_score,
-                        best_before, outcome, diff):
-    """The audit trail: written by the harness only, never by a model."""
+                        best_before, outcome, diff, author="proposer"):
+    """The audit trail: written by the harness only, never by a model.
+    `author` records who made the proposal — the proposer role, or the
+    human owner (user proposals face the same gate)."""
+    who = "" if author == "proposer" else " (author: %s)" % author
     entry = [
-        "\n## Iteration %d — %s `%s` — **%s**"
+        "\n## Iteration %d — %s `%s` — **%s**%s"
         % (iteration, proposal.get("action"),
-           proposal.get("name", "-"), outcome),
+           proposal.get("name", "-"), outcome, who),
         "- validation score: %s (best before: %.4f)"
         % (val_score, best_before),
     ]

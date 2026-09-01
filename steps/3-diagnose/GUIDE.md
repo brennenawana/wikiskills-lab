@@ -36,8 +36,8 @@ and useful result.
 ## Stage 2 — The user's own goal wins
 
 If the interview recorded something the user already wants to improve
-(their words, stage-2 question 9), it goes first, whatever the ranking
-says. Show them what the ledgers say about it — supporting, neutral, or
+(their words, stage-2 question 9), or `workspace/inbox/` holds notes they
+queued from daily work, those go first, whatever the ranking says. Show them what the ledgers say about it — supporting, neutral, or
 "we saw no evidence of this, want to observe another task before choosing?"
 — and let them decide with that in view.
 
@@ -49,16 +49,23 @@ paragraph: what would improve, how it would be measured, what it would
 take. Name your recommendation in the first line. Never present a menu
 without a default.
 
-## Stage 4 — Choose and write it down
+## Stage 4 — Choose and open the engagement
 
 The user picks (or says "you pick" — then your recommendation stands,
-recorded as a default). Write `workspace/diagnosis/focus.md`:
+recorded as a default). The chosen focus opens a new **engagement**:
+create `workspace/engagements/<nnn-slug>/` (next number, short plain
+slug — for example `001-tracker-context`) and write `focus.md` inside it:
 
 - The focus, in one sentence the user agreed to.
-- Why (the finding and its evidence, linked by file and row).
+- Why (the finding and its evidence, linked by file and row; or the inbox
+  note, quoted).
 - A first sketch of the metric (step 4 will make it exact).
 - What kind of improvement artifacts are likely (skill file, context
   policy, pipeline config, instruction-file change).
 
-Update `state.json` to `"step": "3-diagnose", "stage": "done"`, then tell
-the user what happens next: step 4 — the measuring stick.
+If an inbox note led here, mark that note processed (move it into the
+engagement folder). Update `state.json` — `"step": "3-diagnose",
+"stage": "done", "engagement": "<nnn-slug>"` — then tell the user what
+happens next: step 4, the measuring stick. Everything from here through
+step 5 lives in this engagement's folder; finished engagements are never
+edited.

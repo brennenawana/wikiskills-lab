@@ -17,9 +17,9 @@ invented results — for a real end-to-end record with real numbers, read
 | `profile/state.json` | Every step | Where you are; any new session resumes from it |
 | `ledgers/session.json` | Step 2 | The session manifest: streams, grades, gaps, repo pins |
 | `ledgers/calibration.json` | Step 2 | Proof the recorder was verified before the real session |
-| `diagnosis/findings.md` | Step 3 | Findings with evidence, grade, and weekly size |
-| `diagnosis/focus.md` | Step 3 | The one chosen focus and the first metric sketch |
-| `contract/CONTRACT.md` | Step 4 | The generated rules, filled in and ready for approval |
+| `diagnosis/findings.md` | Step 3 | Findings with evidence, grade, and weekly size (shared across engagements) |
+| `diagnosis/focus.md` | Step 3 | The one chosen focus and the first metric sketch — in a real workspace this lives at `engagements/<nnn-slug>/focus.md` |
+| `contract/CONTRACT.md` | Step 4 | The generated rules, filled in and ready for approval — in a real workspace, `engagements/<nnn-slug>/contract/CONTRACT.md` |
 
 The raw ledger files themselves (`model_calls.jsonl`, `actions.jsonl`) are
 not repeated here — their row formats, with examples, are in

@@ -28,4 +28,8 @@ Tell the user: observation is automatic here; they work exactly as normal.
 ## Notes for later steps
 
 - Improvement artifacts install as `CLAUDE.md` edits, skill files, and hook
-  or settings changes — all text, all diffable.
+  or settings changes — all text, all diffable. Skills usually live in the
+  project's or user's skills directory; record the exact location in the
+  profile's skill inventory, and never write there without approval.
+- Return path: install `return-path/claude-code-skill.md` as a skill, with
+  the lab checkout path filled in.
